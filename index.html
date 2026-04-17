@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StreamKit</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --purple: #9147ff; --purple-dark: #772ce8;
+  --bg: #0e0e10; --bg2: #18181b; --bg3: #1f1f23; --bg4: #26262c;
+  --text: #efeff1; --text2: #adadb8; --text3: #6c6c7a;
+  --green: #00b26b; --red: #e91916; --yellow: #ffb700;
+  --border: #2d2d35; --pix: #00bdae;
+}
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+
+/* LOGIN SCREEN */
+#login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24px; }
+.login-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 40px; text-align: center; max-width: 400px; width: 90%; }
+.login-logo { font-size: 32px; font-weight: 800; margin-bottom: 8px; }
+.login-logo span { color: var(--purple); }
+.login-sub { color: var(--text3); font-size: 14px; margin-bottom: 28px; }
+.twitch-btn { display: flex; align-items: center; justify-content: center; gap: 12px; background: var(--purple); color: white; border: none; border-radius: 10px; padding: 14px 28px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; transition: background .15s; }
+.twitch-btn:hover { background: var(--purple-dark); }
+.twitch-btn svg { width: 22px; height: 22px; fill: white; }
+.login-note { font-size: 12px; color: var(--text3); margin-top: 16px; line-height: 1.6; }
+.status-msg { font-size: 13px; color: var(--text2); margin-top: 8px; min-height: 20px; }
+
+/* MAIN APP */
+#app { display: none; }
+.layout { display: flex; min-height: 100vh; }
+.sidebar { width: 220px; background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+.logo { padding: 20px 16px 12px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+.logo-icon { width: 32px; height: 32px; background: var(--purple); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.logo-icon svg { width: 18px; height: 18px; fill: white; }
+.logo-text { font-size: 16px; font-weight: 700; }
+.logo-text span { color: var(--purple); }
+.nav { flex: 1; padding: 12px 8px; }
+.nav-section { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); padding: 8px 8px 4px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer; color: var(--text2); transition: all .15s; margin-bottom: 2px; }
+.nav-item:hover { background: var(--bg4); color: var(--text); }
+.nav-item.active { background: var(--purple); color: white; }
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+.streamer-info { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.streamer-info:hover { background: var(--bg3); }
+.avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.avatar-placeholder { width: 36px; height: 36px; border-radius: 50%; background: var(--purple); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: white; flex-shrink: 0; }
+.streamer-name { font-size: 13px; font-weight: 600; }
+.live-badge { font-size: 10px; background: var(--red); color: white; border-radius: 4px; padding: 1px 5px; font-weight: 700; margin-left: 4px; }
+.streamer-sub { font-size: 11px; color: var(--text3); }
+.main { flex: 1; display: flex; flex-direction: column; }
+.topbar { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+.page-title { font-size: 18px; font-weight: 700; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.live-indicator { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--red); }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.btn { padding: 7px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all .15s; }
+.btn-purple { background: var(--purple); color: white; }
+.btn-purple:hover { background: var(--purple-dark); }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--bg4); color: var(--text); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.content { flex: 1; padding: 24px; overflow-y: auto; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* CARDS */
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+.card-title { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.stat-value { font-size: 26px; font-weight: 700; }
+.stat-loading { font-size: 14px; color: var(--text3); }
+.stat-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+.stat-sub.green { color: var(--green); }
+.dash-grid { display: grid; grid-template-columns: 1fr 320px; gap: 14px; }
+
+/* FEED */
+.feed-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.feed-item:last-child { border-bottom: none; }
+.feed-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.fi-follow { background: rgba(145,71,255,.15); }
+.fi-sub { background: rgba(255,183,0,.15); }
+.fi-raid { background: rgba(233,25,22,.15); }
+.fi-view { background: rgba(0,178,107,.15); }
+.feed-text { flex: 1; }
+.feed-main { font-size: 13px; }
+.feed-main b { color: var(--purple); }
+.feed-time { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.feed-amount { font-size: 14px; font-weight: 700; color: var(--pix); margin-left: auto; }
+
+/* CHANNEL INFO */
+.channel-banner { width: 100%; height: 120px; border-radius: 10px; object-fit: cover; background: var(--bg3); margin-bottom: 16px; display: flex; align-items: center; justify-content: center; color: var(--text3); font-size: 13px; }
+.channel-card { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.channel-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 3px solid var(--purple); }
+.channel-info h2 { font-size: 20px; font-weight: 700; }
+.channel-info p { font-size: 13px; color: var(--text3); margin-top: 2px; }
+.channel-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.tag { background: var(--bg4); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 11px; color: var(--text2); }
+
+/* STREAM INFO */
+.stream-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.info-item { background: var(--bg3); border-radius: 8px; padding: 12px; }
+.info-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+.info-value { font-size: 14px; font-weight: 600; color: var(--text); }
+.info-value.purple { color: var(--purple); }
+.info-value.green { color: var(--green); }
+
+/* OVERLAYS */
+.obs-widget { background: var(--bg3); border-radius: 8px; padding: 10px 12px; width: 180px; }
+.obs-title { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+.obs-value { font-size: 22px; font-weight: 700; }
+.obs-bar { height: 6px; background: var(--bg4); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+.obs-fill { height: 100%; background: var(--purple); border-radius: 3px; }
+.overlays-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.overlay-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.overlay-preview { height: 140px; background: var(--bg); display: flex; align-items: center; justify-content: center; position: relative; }
+.overlay-badge { position: absolute; top: 8px; right: 8px; font-size: 10px; background: var(--green); color: white; border-radius: 4px; padding: 2px 6px; font-weight: 600; }
+.overlay-info { padding: 12px; }
+.overlay-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.overlay-desc { font-size: 11px; color: var(--text3); margin-bottom: 10px; }
+.overlay-actions { display: flex; gap: 6px; }
+
+/* CHATBOT */
+.bot-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+.commands-list { display: flex; flex-direction: column; gap: 8px; }
+.cmd-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
+.cmd-name { font-size: 13px; font-weight: 700; color: var(--purple); min-width: 100px; }
+.cmd-response { font-size: 12px; color: var(--text2); flex: 1; }
+.icon-btn { background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; cursor: pointer; color: var(--text3); font-size: 12px; }
+.icon-btn:hover { background: var(--bg4); color: var(--text); }
+.chat-messages { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; min-height: 280px; max-height: 280px; }
+.msg { display: flex; gap: 8px; align-items: flex-start; }
+.msg-avatar-s { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+.msg-body { flex: 1; }
+.msg-user { font-size: 12px; font-weight: 700; }
+.msg-text { font-size: 12px; color: var(--text2); }
+.chat-input-row { display: flex; gap: 8px; margin-top: 10px; }
+.chat-input-row input { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 9px 12px; font-size: 13px; outline: none; }
+.chat-input-row button { background: var(--purple); border: none; border-radius: 8px; color: white; padding: 9px 14px; cursor: pointer; font-size: 13px; font-weight: 600; }
+
+/* GAMES */
+.games-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.game-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+.game-emoji { font-size: 32px; margin-bottom: 10px; }
+.game-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.game-desc { font-size: 12px; color: var(--text3); margin-bottom: 12px; line-height: 1.5; }
+.ranking-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.rank-pos { font-size: 13px; font-weight: 700; color: var(--text3); min-width: 20px; }
+.rank-pos.gold { color: var(--yellow); }
+.rank-name { flex: 1; font-size: 13px; }
+.rank-pts { font-size: 13px; font-weight: 700; color: var(--purple); }
+
+/* PIX */
+.pix-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+label { font-size: 12px; color: var(--text2); font-weight: 500; }
+input, textarea, select { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 9px 12px; font-size: 13px; width: 100%; outline: none; }
+input:focus, textarea:focus { border-color: var(--purple); }
+textarea { resize: vertical; min-height: 80px; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; }
+.toggle { position: relative; width: 40px; height: 22px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.slider-t { position: absolute; inset: 0; background: var(--bg4); border-radius: 22px; cursor: pointer; transition: .2s; }
+.slider-t:before { content:''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: .2s; }
+input:checked + .slider-t { background: var(--purple); }
+input:checked + .slider-t:before { transform: translateX(18px); }
+.qr-area { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.qr-box { width: 160px; height: 160px; background: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.url-box { background: var(--bg4); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: var(--purple); cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
+.donations-table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+.donations-table th { text-align: left; font-size: 11px; color: var(--text3); text-transform: uppercase; padding: 0 0 8px; }
+.donations-table td { padding: 10px 0; border-top: 1px solid var(--border); font-size: 13px; }
+.amount-cell { color: var(--pix); font-weight: 700; }
+
+/* ALERTAS */
+.alerts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.alert-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.alert-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.alert-type { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+.preview-box { background: var(--bg); border-radius: 8px; padding: 14px; display: flex; align-items: center; gap: 12px; margin: 12px 0; border: 1px solid var(--border); }
+.mini-range { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.mini-range label { font-size: 11px; color: var(--text3); width: 80px; flex-shrink: 0; }
+.mini-range input[type=range] { flex: 1; accent-color: var(--purple); }
+.mini-range span { font-size: 11px; color: var(--text2); min-width: 30px; text-align: right; }
+.test-btn { background: var(--bg4); border: 1px solid var(--border); color: var(--text2); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; margin-top: 10px; }
+.test-btn:hover { background: var(--purple); color: white; border-color: var(--purple); }
+
+/* TOAST */
+.toast { position: fixed; top: 20px; right: 20px; background: var(--bg3); border: 1px solid var(--purple); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; z-index: 9999; transform: translateX(140%); transition: transform .3s; max-width: 320px; }
+.toast.show { transform: translateX(0); }
+.toast-icon { font-size: 24px; }
+.toast-title { font-size: 14px; font-weight: 700; }
+.toast-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+/* ERROR */
+.error-box { background: rgba(233,25,22,.1); border: 1px solid rgba(233,25,22,.3); border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #ff6b6b; margin-top: 12px; display: none; }
+
+@media (max-width: 900px) {
+  .sidebar { width: 56px; }
+  .logo-text, .nav-item span, .streamer-name, .streamer-sub, .nav-section { display: none; }
+  .nav-item { justify-content: center; }
+  .stats-grid { grid-template-columns: repeat(2,1fr); }
+  .dash-grid, .pix-layout, .bot-layout, .stream-info-grid { grid-template-columns: 1fr; }
+  .overlays-grid, .games-grid, .alerts-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">Stream<span>Kit</span></div>
+    <div class="login-sub">Plataforma completa para streamers brasileiros</div>
+    <button class="twitch-btn" onclick="startLogin()">
+      <svg viewBox="0 0 24 24"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>
+      Entrar com Twitch
+    </button>
+    <div class="status-msg" id="login-status"></div>
+    <div class="error-box" id="login-error"></div>
+    <div class="login-note">Seus dados são usados apenas para exibir informações do seu canal. Não armazenamos nada.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+<div class="layout">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon"><svg viewBox="0 0 24 24" fill="white"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg></div>
+      <span class="logo-text">Stream<span>Kit</span></span>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Principal</div>
+      <div class="nav-item active" onclick="nav('dashboard')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+        <span>Dashboard</span>
+      </div>
+      <div class="nav-item" onclick="nav('canal')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+        <span>Meu Canal</span>
+      </div>
+      <div class="nav-section">Ferramentas</div>
+      <div class="nav-item" onclick="nav('pix')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+        <span>Doações PIX</span>
+      </div>
+      <div class="nav-item" onclick="nav('alertas')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+        <span>Alertas</span>
+      </div>
+      <div class="nav-item" onclick="nav('overlays')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+        <span>Overlays</span>
+      </div>
+      <div class="nav-item" onclick="nav('chatbot')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+        <span>ChatBot</span>
+      </div>
+      <div class="nav-item" onclick="nav('games')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 7.5V2H9v5.5l3 3 3-3zM7.5 9H2v6h5.5l3-3-3-3zM9 16.5V22h6v-5.5l-3-3-3 3zM16.5 9l-3 3 3 3H22V9h-5.5z"/></svg>
+        <span>Brincadeiras</span>
+      </div>
+    </nav>
+    <div class="streamer-info" onclick="nav('canal')">
+      <img id="sidebar-avatar" class="avatar" src="" style="display:none">
+      <div class="avatar-placeholder" id="sidebar-placeholder">?</div>
+      <div>
+        <div class="streamer-name" id="sidebar-name">Carregando...</div>
+        <div class="streamer-sub" id="sidebar-followers">— seguidores</div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="page-title" id="page-title">Dashboard</div>
+      <div class="topbar-right">
+        <div class="live-indicator" id="live-indicator" style="display:none">
+          <div class="live-dot"></div> AO VIVO
+        </div>
+        <button class="btn btn-ghost" onclick="refreshData()">↻ Atualizar</button>
+        <button class="btn btn-ghost" onclick="logout()">Sair</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Seguidores</div>
+            <div class="stat-value" id="stat-followers"><span class="stat-loading">—</span></div>
+            <div class="stat-sub" id="stat-followers-sub">carregando...</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Viewers Agora</div>
+            <div class="stat-value" id="stat-viewers"><span class="stat-loading">—</span></div>
+            <div class="stat-sub" id="stat-viewers-sub">carregando...</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Inscritos</div>
+            <div class="stat-value" id="stat-subs"><span class="stat-loading">—</span></div>
+            <div class="stat-sub" id="stat-subs-sub">carregando...</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Status</div>
+            <div class="stat-value" id="stat-status" style="font-size:16px;padding-top:4px"><span class="stat-loading">—</span></div>
+            <div class="stat-sub" id="stat-status-sub">carregando...</div>
+          </div>
+        </div>
+        <div class="dash-grid">
+          <div class="card">
+            <div class="card-title">Informações da Stream <span id="stream-game" style="font-size:12px;color:var(--purple)"></span></div>
+            <div id="stream-details">
+              <div style="color:var(--text3);font-size:13px;padding:20px 0;text-align:center">Faça login para ver os dados da sua stream</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Acesso Rápido</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <button class="btn btn-purple" style="width:100%" onclick="nav('pix')">💸 Configurar PIX</button>
+              <button class="btn btn-ghost" style="width:100%" onclick="nav('overlays')">🖼️ Gerenciar Overlays</button>
+              <button class="btn btn-ghost" style="width:100%" onclick="nav('chatbot')">🤖 Editar ChatBot</button>
+              <button class="btn btn-ghost" style="width:100%" onclick="nav('games')">🎲 Ativar Brincadeiras</button>
+              <button class="btn btn-ghost" style="width:100%;margin-top:4px" onclick="showToast('🔔','Alerta de Teste!','Seus alertas estão funcionando perfeitamente!')">🔔 Testar Alertas</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CANAL -->
+      <div class="page" id="page-canal">
+        <div class="card" style="margin-bottom:16px">
+          <div class="channel-card">
+            <img id="channel-avatar" class="channel-avatar" src="" style="display:none">
+            <div class="avatar-placeholder" id="channel-placeholder" style="width:64px;height:64px;font-size:22px">?</div>
+            <div class="channel-info">
+              <h2 id="channel-name">Carregando...</h2>
+              <p id="channel-desc">—</p>
+              <div class="channel-tags" id="channel-tags"></div>
+            </div>
+          </div>
+          <div class="stream-info-grid" id="stream-info-grid">
+            <div class="info-item"><div class="info-label">Seguidores</div><div class="info-value purple" id="ci-followers">—</div></div>
+            <div class="info-item"><div class="info-label">Visualizações totais</div><div class="info-value" id="ci-views">—</div></div>
+            <div class="info-item"><div class="info-label">Parceiro / Afiliado</div><div class="info-value" id="ci-type">—</div></div>
+            <div class="info-item"><div class="info-label">Conta criada em</div><div class="info-value" id="ci-created">—</div></div>
+          </div>
+        </div>
+        <div class="card" id="stream-live-card" style="display:none">
+          <div class="card-title">Stream Atual <span class="live-badge">AO VIVO</span></div>
+          <div class="stream-info-grid">
+            <div class="info-item"><div class="info-label">Título</div><div class="info-value" id="sl-title">—</div></div>
+            <div class="info-item"><div class="info-label">Jogo/Categoria</div><div class="info-value purple" id="sl-game">—</div></div>
+            <div class="info-item"><div class="info-label">Viewers agora</div><div class="info-value green" id="sl-viewers">—</div></div>
+            <div class="info-item"><div class="info-label">Iniciou em</div><div class="info-value" id="sl-started">—</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PIX -->
+      <div class="page" id="page-pix">
+        <div class="pix-layout">
+          <div class="card">
+            <div class="card-title">Configuração PIX</div>
+            <div class="form-group"><label>Chave PIX</label><input placeholder="CPF, e-mail, telefone ou chave aleatória"></div>
+            <div class="form-group"><label>Nome do beneficiário</label><input id="pix-name" placeholder="Seu nome"></div>
+            <div class="form-group"><label>Mensagem de agradecimento</label><textarea>Valeu pelo apoio! Você é incrível! 💜</textarea></div>
+            <div class="form-group"><label>Valor mínimo (R$)</label><input type="number" value="5" min="1"></div>
+            <div class="toggle-row"><span>Exibir alerta ao receber doação</span><label class="toggle"><input type="checkbox" checked><span class="slider-t"></span></label></div>
+            <div class="toggle-row"><span>TTS do nome do doador</span><label class="toggle"><input type="checkbox" checked><span class="slider-t"></span></label></div>
+            <button class="btn btn-purple" style="width:100%;margin-top:8px">Salvar configurações</button>
+          </div>
+          <div>
+            <div class="card" style="margin-bottom:14px">
+              <div class="card-title">Sua página de doação</div>
+              <div class="qr-area">
+                <div class="qr-box">
+                  <svg width="140" height="140" viewBox="0 0 100 100">
+                    <rect x="10" y="10" width="30" height="30" fill="none" stroke="#000" stroke-width="4"/>
+                    <rect x="16" y="16" width="18" height="18" fill="#000"/>
+                    <rect x="60" y="10" width="30" height="30" fill="none" stroke="#000" stroke-width="4"/>
+                    <rect x="66" y="16" width="18" height="18" fill="#000"/>
+                    <rect x="10" y="60" width="30" height="30" fill="none" stroke="#000" stroke-width="4"/>
+                    <rect x="16" y="66" width="18" height="18" fill="#000"/>
+                    <rect x="60" y="60" width="8" height="8" fill="#000"/>
+                    <rect x="72" y="60" width="8" height="8" fill="#000"/>
+                    <rect x="84" y="60" width="8" height="8" fill="#000"/>
+                    <rect x="60" y="72" width="8" height="8" fill="#000"/>
+                    <rect x="72" y="72" width="8" height="8" fill="#000"/>
+                    <rect x="84" y="84" width="8" height="8" fill="#000"/>
+                    <rect x="60" y="84" width="8" height="8" fill="#000"/>
+                    <rect x="45" y="10" width="6" height="6" fill="#000"/>
+                    <rect x="45" y="20" width="6" height="6" fill="#000"/>
+                    <rect x="45" y="30" width="6" height="6" fill="#000"/>
+                    <rect x="10" y="45" width="6" height="6" fill="#000"/>
+                    <rect x="20" y="45" width="6" height="6" fill="#000"/>
+                    <rect x="30" y="45" width="6" height="6" fill="#000"/>
+                    <rect x="45" y="45" width="6" height="6" fill="#000"/>
+                  </svg>
+                </div>
+                <div class="url-box" id="pix-url-box" onclick="copyUrl(this)">
+                  <span id="pix-url-text">streamkit.app/doe/seucanalaqui</span>
+                  <span>📋</span>
+                </div>
+                <button class="btn btn-purple" style="width:100%">Compartilhar link</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Últimas doações</div>
+              <table class="donations-table">
+                <tr><th>Doador</th><th>Mensagem</th><th>Valor</th></tr>
+                <tr><td>João_Gamer</td><td style="color:var(--text3);font-size:12px">Mto bom a live!</td><td class="amount-cell">R$ 25</td></tr>
+                <tr><td>Lurker123</td><td style="color:var(--text3);font-size:12px">❤️</td><td class="amount-cell">R$ 10</td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ALERTAS -->
+      <div class="page" id="page-alertas">
+        <div class="alerts-grid">
+          <div class="alert-card">
+            <div class="alert-header"><div class="alert-type">👤 Novo Seguidor</div><label class="toggle"><input type="checkbox" checked><span class="slider-t"></span></label></div>
+            <div class="preview-box"><div style="font-size:28px">🎉</div><div><div style="font-size:15px;font-weight:700;color:var(--purple)" id="alert-follow-name">NovoFã</div><div style="font-size:13px;color:var(--text2)">acabou de seguir o canal!</div></div></div>
+            <div class="mini-range"><label>Volume</label><input type="range" min="0" max="100" value="80" oninput="this.nextElementSibling.textContent=this.value+'%'"><span>80%</span></div>
+            <div class="mini-range"><label>Duração</label><input type="range" min="2" max="10" value="5" oninput="this.nextElementSibling.textContent=this.value+'s'"><span>5s</span></div>
+            <button class="test-btn" onclick="showToast('👤','Novo Seguidor!','NovoFã começou a seguir o canal')">Testar alerta</button>
+          </div>
+          <div class="alert-card">
+            <div class="alert-header"><div class="alert-type">⭐ Nova Sub</div><label class="toggle"><input type="checkbox" checked><span class="slider-t"></span></label></div>
+            <div class="preview-box"><div style="font-size:28px">🌟</div><div><div style="font-size:15px;font-weight:700;color:var(--yellow)">ProPlayer99</div><div style="font-size:13px;color:var(--text2)">assinou Tier 1!</div></div></div>
+            <div class="mini-range"><label>Volume</label><input type="range" min="0" max="100" value="90" oninput="this.nextElementSibling.textContent=this.value+'%'"><span>90%</span></div>
+            <div class="mini-range"><label>Duração</label><input type="range" min="2" max="10" value="6" oninput="this.nextElementSibling.textContent=this.value+'s'"><span>6s</span></div>
+            <button class="test-btn" onclick="showToast('⭐','Nova Sub!','ProPlayer99 assinou Tier 1!')">Testar alerta</button>
+          </div>
+          <div class="alert-card">
+            <div class="alert-header"><div class="alert-type">💸 Doação PIX</div><label class="toggle"><input type="checkbox" checked><span class="slider-t"></span></label></div>
+            <div class="preview-box"><div style="font-size:28px">💚</div><div><div style="font-size:15px;font-weight:700;color:var(--pix)">João_Gamer doou R$ 25!</div><div style="font-size:13px;color:var(--text2)">Mto bom a live!</div></div></div>
+            <div class="mini-range"><label>Volume</label><input type="range" min="0" max="100" value="100" oninput="this.nextElementSibling.textContent=this.value+'%'"><span>100%</span></div>
+            <div class="mini-range"><label>Duração</label><input type="range" min="2" max="10" value="8" oninput="this.nextElementSibling.textContent=this.value+'s'"><span>8s</span></div>
+            <button class="test-btn" onclick="showToast('💸','Doação PIX!','João_Gamer doou R$ 25,00')">Testar alerta</button>
+          </div>
+          <div class="alert-card">
+            <div class="alert-header"><div class="alert-type">⚔️ Raid</div><label class="toggle"><input type="checkbox" checked><span class="slider-t"></span></label></div>
+            <div class="preview-box"><div style="font-size:28px">🚀</div><div><div style="font-size:15px;font-weight:700;color:var(--red)">CanalAmigo</div><div style="font-size:13px;color:var(--text2)">fez um raid com 87 viewers!</div></div></div>
+            <div class="mini-range"><label>Volume</label><input type="range" min="0" max="100" value="100" oninput="this.nextElementSibling.textContent=this.value+'%'"><span>100%</span></div>
+            <div class="mini-range"><label>Duração</label><input type="range" min="2" max="10" value="10" oninput="this.nextElementSibling.textContent=this.value+'s'"><span>10s</span></div>
+            <button class="test-btn" onclick="showToast('⚔️','Raid recebido!','CanalAmigo trouxe 87 viewers!')">Testar alerta</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- OVERLAYS -->
+      <div class="page" id="page-overlays">
+        <div class="overlays-grid">
+          <div class="overlay-card">
+            <div class="overlay-preview">
+              <div class="obs-widget"><div class="obs-title">Seguidores</div><div class="obs-value" id="ov-followers">—</div><div class="obs-bar"><div class="obs-fill" style="width:75%"></div></div></div>
+              <div class="overlay-badge">Ativo</div>
+            </div>
+            <div class="overlay-info"><div class="overlay-name">Contador de Seguidores</div><div class="overlay-desc">Dado real do seu canal via Twitch API.</div><div class="overlay-actions"><button class="btn btn-purple btn-sm">Copiar URL OBS</button><button class="btn btn-ghost btn-sm">Editar</button></div></div>
+          </div>
+          <div class="overlay-card">
+            <div class="overlay-preview">
+              <div style="background:rgba(0,0,0,.5);border-radius:8px;padding:10px;width:200px;font-size:11px">
+                <div style="margin-bottom:4px"><span style="font-weight:700;color:#9147ff">StreamFã:</span> <span style="color:#fff">Boa demais!</span></div>
+                <div style="margin-bottom:4px"><span style="font-weight:700;color:#ffb700">ProPlayer:</span> <span style="color:#fff">kkkkkk</span></div>
+                <div><span style="font-weight:700;color:#00b26b">NovoFã:</span> <span style="color:#fff">!discord</span></div>
+              </div>
+              <div class="overlay-badge">Ativo</div>
+            </div>
+            <div class="overlay-info"><div class="overlay-name">Chat Overlay</div><div class="overlay-desc">Chat da Twitch sobre a tela. Transparente.</div><div class="overlay-actions"><button class="btn btn-purple btn-sm">Copiar URL OBS</button><button class="btn btn-ghost btn-sm">Editar</button></div></div>
+          </div>
+          <div class="overlay-card">
+            <div class="overlay-preview">
+              <div style="background:rgba(145,71,255,.9);border-radius:10px;padding:12px 16px;text-align:center;width:200px">
+                <div style="font-size:13px;font-weight:700;color:white">🎉 NovoFã seguiu!</div>
+                <div style="font-size:11px;color:rgba(255,255,255,.8)">Obrigado pelo follow!</div>
+              </div>
+              <div class="overlay-badge">Ativo</div>
+            </div>
+            <div class="overlay-info"><div class="overlay-name">Alertas na Tela</div><div class="overlay-desc">Pop-ups de alerta em tempo real.</div><div class="overlay-actions"><button class="btn btn-purple btn-sm">Copiar URL OBS</button><button class="btn btn-ghost btn-sm">Editar</button></div></div>
+          </div>
+          <div class="overlay-card">
+            <div class="overlay-preview">
+              <div style="background:var(--bg3);border-radius:8px;padding:10px;width:200px">
+                <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Meta de subs — agosto</div>
+                <div style="height:8px;background:var(--bg4);border-radius:4px;overflow:hidden"><div style="height:100%;background:linear-gradient(90deg,var(--purple),#bf94ff);width:62%;border-radius:4px"></div></div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:4px"><span id="ov-subs-cur">— subs</span><span>200 subs</span></div>
+              </div>
+              <div class="overlay-badge">Ativo</div>
+            </div>
+            <div class="overlay-info"><div class="overlay-name">Barra de Meta</div><div class="overlay-desc">Progresso de subs atualizado em tempo real.</div><div class="overlay-actions"><button class="btn btn-purple btn-sm">Copiar URL OBS</button><button class="btn btn-ghost btn-sm">Editar</button></div></div>
+          </div>
+          <div class="overlay-card">
+            <div class="overlay-preview">
+              <div class="obs-widget" style="width:160px"><div class="obs-title">Tempo de Live</div><div class="obs-value" id="ov-uptime">00:00:00</div></div>
+              <div class="overlay-badge" id="ov-uptime-badge" style="background:var(--bg4);color:var(--text3)">Inativo</div>
+            </div>
+            <div class="overlay-info"><div class="overlay-name">Cronômetro de Live</div><div class="overlay-desc">Tempo real desde o início da stream.</div><div class="overlay-actions"><button class="btn btn-purple btn-sm">Ativar</button><button class="btn btn-ghost btn-sm">Editar</button></div></div>
+          </div>
+          <div class="overlay-card">
+            <div class="overlay-preview" style="flex-direction:column;gap:6px">
+              <div style="font-size:28px">🎨</div>
+              <div style="font-size:12px;color:var(--text3)">Criar overlay</div>
+            </div>
+            <div class="overlay-info"><div class="overlay-name">Novo Overlay</div><div class="overlay-desc">Crie um overlay personalizado do zero.</div><div class="overlay-actions"><button class="btn btn-purple btn-sm">+ Criar</button></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHATBOT -->
+      <div class="page" id="page-chatbot">
+        <div class="bot-layout">
+          <div class="card">
+            <div class="card-title">Comandos <button class="btn btn-purple btn-sm">+ Adicionar</button></div>
+            <div class="commands-list">
+              <div class="cmd-item"><div class="cmd-name">!discord</div><div class="cmd-response">Entra no nosso Discord: discord.gg/seucanalaqui</div><div style="display:flex;gap:6px"><button class="icon-btn">✏️</button><button class="icon-btn">🗑️</button></div></div>
+              <div class="cmd-item"><div class="cmd-name">!redes</div><div class="cmd-response">Instagram e Twitter: @seucanalaqui</div><div style="display:flex;gap:6px"><button class="icon-btn">✏️</button><button class="icon-btn">🗑️</button></div></div>
+              <div class="cmd-item"><div class="cmd-name">!uptime</div><div class="cmd-response">A live está rolando há {uptime}!</div><div style="display:flex;gap:6px"><button class="icon-btn">✏️</button><button class="icon-btn">🗑️</button></div></div>
+              <div class="cmd-item"><div class="cmd-name">!donate</div><div class="cmd-response">Apoie o canal: streamkit.app/doe/seucanalaqui</div><div style="display:flex;gap:6px"><button class="icon-btn">✏️</button><button class="icon-btn">🗑️</button></div></div>
+              <div class="cmd-item"><div class="cmd-name">!canal</div><div class="cmd-response" id="cmd-canal-resp">Siga em: twitch.tv/seucanalaqui</div><div style="display:flex;gap:6px"><button class="icon-btn">✏️</button><button class="icon-btn">🗑️</button></div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Simular Chat</div>
+            <div class="chat-messages" id="chat-sim-msgs">
+              <div class="msg"><div class="msg-avatar-s" style="background:#9147ff;color:white">J</div><div class="msg-body"><div class="msg-user" style="color:#9147ff">João_Gamer</div><div class="msg-text">!discord</div></div></div>
+              <div class="msg"><div class="msg-avatar-s" style="background:#00b26b;color:white">🤖</div><div class="msg-body"><div class="msg-user" style="color:#00b26b">StreamKitBot</div><div class="msg-text">Entra no nosso Discord: discord.gg/seucanalaqui</div></div></div>
+            </div>
+            <div class="chat-input-row">
+              <input id="chat-in" placeholder="Digite um comando... (!discord, !redes...)" onkeydown="if(event.key==='Enter')sendChat()">
+              <button onclick="sendChat()">Enviar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GAMES -->
+      <div class="page" id="page-games">
+        <div class="games-grid">
+          <div class="game-card">
+            <div class="game-emoji">🎲</div>
+            <div class="game-name">Roleta do Chat</div>
+            <div class="game-desc">Viewers digitam !roleta e ganham pontos aleatórios entre -500 e +500.</div>
+            <button class="btn btn-purple" style="width:100%;margin-bottom:8px">Ativar</button>
+            <button class="btn btn-ghost" style="width:100%">Configurar</button>
+          </div>
+          <div class="game-card">
+            <div class="game-emoji">⚔️</div>
+            <div class="game-name">Duelo</div>
+            <div class="game-desc">!duel @usuario — desafie outro viewer e aposte pontos!</div>
+            <button class="btn btn-purple" style="width:100%;margin-bottom:8px">Ativar</button>
+            <button class="btn btn-ghost" style="width:100%">Configurar</button>
+          </div>
+          <div class="game-card">
+            <div class="game-emoji">🎁</div>
+            <div class="game-name">Sorteio</div>
+            <div class="game-desc">!giveaway para iniciar. O bot sorteia ao vivo no chat.</div>
+            <button class="btn btn-purple" style="width:100%;margin-bottom:8px" onclick="showToast('🎁','Sorteio iniciado!','Viewers digitam !participar para entrar')">Iniciar</button>
+            <button class="btn btn-ghost" style="width:100%">Configurar</button>
+          </div>
+          <div class="game-card">
+            <div class="game-emoji">💰</div>
+            <div class="game-name">Pontos de Fidelidade</div>
+            <div class="game-desc">Viewers ganham pontos por assistir, chatear e resgatar recompensas.</div>
+            <button class="btn btn-purple" style="width:100%;margin-bottom:8px">Ativar</button>
+            <button class="btn btn-ghost" style="width:100%">Configurar</button>
+          </div>
+          <div class="game-card">
+            <div class="game-emoji">🔮</div>
+            <div class="game-name">Previsões</div>
+            <div class="game-desc">Faça perguntas e o chat aposta pontos no resultado.</div>
+            <button class="btn btn-purple" style="width:100%;margin-bottom:8px">Nova previsão</button>
+            <button class="btn btn-ghost" style="width:100%">Histórico</button>
+          </div>
+          <div class="game-card" style="background:var(--bg3)">
+            <div class="card-title" style="margin-bottom:10px">Ranking de pontos</div>
+            <div class="ranking-item"><div class="rank-pos gold">1</div><div class="rank-name">João_Gamer</div><div class="rank-pts">12.480</div></div>
+            <div class="ranking-item"><div class="rank-pos">2</div><div class="rank-name">ProPlayer99</div><div class="rank-pts">9.320</div></div>
+            <div class="ranking-item"><div class="rank-pos">3</div><div class="rank-name">StreamFã</div><div class="rank-pts">7.100</div></div>
+            <div class="ranking-item"><div class="rank-pos">4</div><div class="rank-name">Lurker123</div><div class="rank-pts">4.860</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <div class="toast-icon" id="toast-icon">🎉</div>
+  <div>
+    <div class="toast-title" id="toast-title">Alerta!</div>
+    <div class="toast-sub" id="toast-sub">Mensagem aqui</div>
+  </div>
+</div>
+
+<script>
+const CLIENT_ID = 'tyrr0aeoeuiod5xu117pil112uqijf';
+const REDIRECT_URI = window.location.href.split('?')[0].split('#')[0];
+const SCOPES = 'user:read:email channel:read:subscriptions moderator:read:followers';
+
+let accessToken = null;
+let userData = null;
+let streamData = null;
+let uptimeInterval = null;
+let streamStart = null;
+
+// --- AUTH ---
+function startLogin() {
+  const state = Math.random().toString(36).slice(2);
+  sessionStorage.setItem('twitch_state', state);
+  const url = `https://id.twitch.tv/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token&scope=${encodeURIComponent(SCOPES)}&state=${state}`;
+  setStatus('Redirecionando para a Twitch...');
+  window.location.href = url;
+}
+
+function checkCallback() {
+  const hash = window.location.hash;
+  if (!hash) return false;
+  const params = new URLSearchParams(hash.slice(1));
+  const token = params.get('access_token');
+  const state = params.get('state');
+  if (!token) return false;
+  window.history.replaceState(null, '', window.location.pathname);
+  accessToken = token;
+  return true;
+}
+
+function setStatus(msg) {
+  document.getElementById('login-status').textContent = msg;
+}
+
+function showError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setStatus('');
+}
+
+function logout() {
+  accessToken = null; userData = null; streamData = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// --- API ---
+async function twitchGet(endpoint) {
+  const r = await fetch(`https://api.twitch.tv/helix${endpoint}`, {
+    headers: { 'Authorization': `Bearer ${accessToken}`, 'Client-Id': CLIENT_ID }
+  });
+  if (!r.ok) throw new Error(`API error ${r.status}`);
+  return r.json();
+}
+
+async function loadUserData() {
+  setStatus('Buscando dados do usuário...');
+  const data = await twitchGet('/users');
+  userData = data.data[0];
+}
+
+async function loadFollowers() {
+  try {
+    const data = await twitchGet(`/channels/followers?broadcaster_id=${userData.id}&first=1`);
+    return data.total ?? null;
+  } catch { return null; }
+}
+
+async function loadStream() {
+  try {
+    const data = await twitchGet(`/streams?user_id=${userData.id}`);
+    return data.data[0] ?? null;
+  } catch { return null; }
+}
+
+async function loadSubs() {
+  try {
+    const data = await twitchGet(`/subscriptions?broadcaster_id=${userData.id}&first=1`);
+    return data.total ?? null;
+  } catch { return null; }
+}
+
+// --- POPULATE UI ---
+function fmt(n) { return n != null ? n.toLocaleString('pt-BR') : '—'; }
+
+function populateSidebar() {
+  document.getElementById('sidebar-name').textContent = userData.display_name;
+  const av = userData.profile_image_url;
+  if (av) {
+    const img = document.getElementById('sidebar-avatar');
+    img.src = av; img.style.display = 'block';
+    document.getElementById('sidebar-placeholder').style.display = 'none';
+  } else {
+    document.getElementById('sidebar-placeholder').textContent = userData.display_name[0].toUpperCase();
+  }
+}
+
+function populateChannel() {
+  document.getElementById('channel-name').textContent = userData.display_name;
+  document.getElementById('channel-desc').textContent = userData.description || 'Sem descrição';
+  document.getElementById('ci-views').textContent = fmt(userData.view_count);
+  const typeMap = { partner: '✅ Parceiro', affiliate: '⭐ Afiliado', '' : '— Nenhum' };
+  document.getElementById('ci-type').textContent = typeMap[userData.broadcaster_type] || userData.broadcaster_type || '—';
+  document.getElementById('ci-created').textContent = new Date(userData.created_at).toLocaleDateString('pt-BR');
+  const av = userData.profile_image_url;
+  if (av) {
+    const img = document.getElementById('channel-avatar');
+    img.src = av; img.style.display = 'block';
+    document.getElementById('channel-placeholder').style.display = 'none';
+  }
+}
+
+function populateDashboard(followers, stream, subs) {
+  document.getElementById('stat-followers').textContent = fmt(followers);
+  document.getElementById('stat-followers-sub').textContent = 'seguidores totais';
+  if (followers != null) document.getElementById('sidebar-followers').textContent = fmt(followers) + ' seguidores';
+
+  if (stream) {
+    streamData = stream;
+    streamStart = new Date(stream.started_at);
+    document.getElementById('stat-viewers').textContent = fmt(stream.viewer_count);
+    document.getElementById('stat-viewers-sub').textContent = 'ao vivo agora';
+    document.getElementById('stat-status').innerHTML = '<span style="color:var(--red)">● AO VIVO</span>';
+    document.getElementById('stat-status-sub').textContent = stream.game_name || '—';
+    document.getElementById('live-indicator').style.display = 'flex';
+    document.getElementById('stream-game').textContent = stream.game_name;
+    document.getElementById('stream-details').innerHTML = `
+      <div class="stream-info-grid">
+        <div class="info-item"><div class="info-label">Título</div><div class="info-value">${stream.title || '—'}</div></div>
+        <div class="info-item"><div class="info-label">Jogo</div><div class="info-value purple">${stream.game_name || '—'}</div></div>
+        <div class="info-item"><div class="info-label">Viewers</div><div class="info-value green">${fmt(stream.viewer_count)}</div></div>
+        <div class="info-item"><div class="info-label">Iniciou</div><div class="info-value">${streamStart.toLocaleTimeString('pt-BR')}</div></div>
+      </div>`;
+    // Canal page
+    document.getElementById('stream-live-card').style.display = 'block';
+    document.getElementById('sl-title').textContent = stream.title || '—';
+    document.getElementById('sl-game').textContent = stream.game_name || '—';
+    document.getElementById('sl-viewers').textContent = fmt(stream.viewer_count);
+    document.getElementById('sl-started').textContent = streamStart.toLocaleTimeString('pt-BR');
+    // Overlay uptime
+    document.getElementById('ov-uptime-badge').style.background = 'var(--green)';
+    document.getElementById('ov-uptime-badge').style.color = 'white';
+    document.getElementById('ov-uptime-badge').textContent = 'Ativo';
+    startUptimeClock();
+  } else {
+    document.getElementById('stat-viewers').textContent = '0';
+    document.getElementById('stat-viewers-sub').textContent = 'offline agora';
+    document.getElementById('stat-status').innerHTML = '<span style="color:var(--text3)">Offline</span>';
+    document.getElementById('stat-status-sub').textContent = 'canal offline';
+    document.getElementById('stream-details').innerHTML = '<div style="color:var(--text3);font-size:13px;padding:20px 0;text-align:center">Nenhuma stream ativa no momento</div>';
+  }
+  document.getElementById('stat-subs').textContent = subs != null ? fmt(subs) : '—';
+  document.getElementById('stat-subs-sub').textContent = subs != null ? 'inscritos ativos' : 'requer parceria';
+
+  // Overlays
+  if (followers != null) {
+    document.getElementById('ov-followers').textContent = fmt(followers);
+    document.getElementById('ci-followers').textContent = fmt(followers);
+  }
+  if (subs != null) document.getElementById('ov-subs-cur').textContent = fmt(subs) + ' subs';
+
+  // PIX url with username
+  const uname = userData.login;
+  document.getElementById('pix-url-text').textContent = `streamkit.app/doe/${uname}`;
+  document.getElementById('pix-name').value = userData.display_name;
+  document.getElementById('cmd-canal-resp').textContent = `Siga em: twitch.tv/${uname}`;
+}
+
+function startUptimeClock() {
+  if (uptimeInterval) clearInterval(uptimeInterval);
+  uptimeInterval = setInterval(() => {
+    if (!streamStart) return;
+    const diff = Math.floor((Date.now() - streamStart.getTime()) / 1000);
+    const h = String(Math.floor(diff / 3600)).padStart(2, '0');
+    const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+    const s = String(diff % 60).padStart(2, '0');
+    const el = document.getElementById('ov-uptime');
+    if (el) el.textContent = `${h}:${m}:${s}`;
+  }, 1000);
+}
+
+async function loadAll() {
+  try {
+    await loadUserData();
+    populateSidebar();
+    populateChannel();
+    setStatus('Carregando dados do canal...');
+    const [followers, stream, subs] = await Promise.all([loadFollowers(), loadStream(), loadSubs()]);
+    populateDashboard(followers, stream, subs);
+    setStatus('');
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    showToast('✅', `Olá, ${userData.display_name}!`, 'StreamKit conectado com sucesso!');
+  } catch(e) {
+    showError('Erro ao conectar com a Twitch. Verifique sua conexão e tente novamente. (' + e.message + ')');
+  }
+}
+
+async function refreshData() {
+  if (!accessToken || !userData) return;
+  showToast('🔄', 'Atualizando...', 'Buscando dados mais recentes');
+  try {
+    const [followers, stream, subs] = await Promise.all([loadFollowers(), loadStream(), loadSubs()]);
+    populateDashboard(followers, stream, subs);
+    showToast('✅', 'Atualizado!', 'Dados do canal sincronizados');
+  } catch(e) { showToast('❌', 'Erro', 'Não foi possível atualizar'); }
+}
+
+// --- NAV ---
+const pageNames = {dashboard:'Dashboard',canal:'Meu Canal',pix:'Doações PIX',alertas:'Alertas',overlays:'Overlays',chatbot:'ChatBot',games:'Brincadeiras'};
+function nav(p) {
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('page-' + p).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(el => { if (el.getAttribute('onclick') === `nav('${p}')`) el.classList.add('active'); });
+  document.getElementById('page-title').textContent = pageNames[p];
+}
+
+// --- TOAST ---
+let toastTimer;
+function showToast(icon='🔔', title='Alerta', sub='Mensagem') {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-icon').textContent = icon;
+  document.getElementById('toast-title').textContent = title;
+  document.getElementById('toast-sub').textContent = sub;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// --- CHAT SIM ---
+const cmds = {
+  '!discord': 'Entra no nosso Discord: discord.gg/seucanalaqui',
+  '!redes': 'Instagram e Twitter: @seucanalaqui',
+  '!uptime': 'A live está rolando! Use !canal para ver o link.',
+  '!donate': 'Apoie o canal: streamkit.app/doe/seucanalaqui',
+  '!canal': () => `Siga em: twitch.tv/${userData?.login || 'seucanalaqui'}`,
+};
+const colors = ['#9147ff','#ffb700','#00b26b','#e91916','#00bdae'];
+let ci = 0;
+function sendChat() {
+  const inp = document.getElementById('chat-in');
+  const val = inp.value.trim(); if (!val) return;
+  const msgs = document.getElementById('chat-sim-msgs');
+  const col = colors[ci++ % colors.length];
+  msgs.innerHTML += `<div class="msg"><div class="msg-avatar-s" style="background:${col};color:white">${val[0].toUpperCase()}</div><div class="msg-body"><div class="msg-user" style="color:${col}">Você</div><div class="msg-text">${val}</div></div></div>`;
+  const key = val.toLowerCase().split(' ')[0];
+  const resp = cmds[key];
+  if (resp) {
+    const text = typeof resp === 'function' ? resp() : resp;
+    setTimeout(() => {
+      msgs.innerHTML += `<div class="msg"><div class="msg-avatar-s" style="background:#00b26b;color:white">🤖</div><div class="msg-body"><div class="msg-user" style="color:#00b26b">StreamKitBot</div><div class="msg-text">${text}</div></div></div>`;
+      msgs.scrollTop = msgs.scrollHeight;
+    }, 500);
+  }
+  inp.value = '';
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function copyUrl(el) {
+  const url = document.getElementById('pix-url-text').textContent;
+  navigator.clipboard.writeText(url).catch(()=>{});
+  el.innerHTML = '<span>✅ Copiado!</span>';
+  setTimeout(() => { el.innerHTML = `<span>${url}</span><span>📋</span>`; }, 2000);
+}
+
+// --- INIT ---
+window.addEventListener('load', () => {
+  if (checkCallback()) {
+    setStatus('Autenticando...');
+    loadAll();
+  }
+});
+</script>
+</body>
+</html>
